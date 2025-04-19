@@ -1,0 +1,5 @@
+PlaceMMPialSurf --mm_min_inside 50 --mm_max_inside 200 --mm_min_outside 10 --mm_max_outside 50
+mri_ca_label -vent-fix -1 7000 1 -insert-wm-bet-putctx 1
+WhitePreAparc --rip-bg-no-annot
+mri_edit_wm_with_aseg -fix-scm-ha 1
+

@@ -1,0 +1,94 @@
+#####################################################
+             INITIAL FREESURFER ANALYSIS
+#####################################################
+
+requirements: 
+FreeSurfer 7.3.2 run w/expert options found in file "global-expert-options.txt" (see FREESURFER-NOTES below)
+If running fssubregions-part, need to use singularity + freesurfer_7.3.2.sif image (can be downloaded from freesurfer repo)
+    + need to bind patched files (see FREESURFER-NOTES below + comments in fs_subregions.sh)
+    
+order:
+1) submit_freesurfer-default.sh
+2) submit_freesurfer-base.sh # depends on 1) so run this first
+3) submit_freesurfer-long.sh # depends on 2) so run this first
+4) submit_samseg.sh # depends on 3) so run this first
+5) submit_fssubregions.sh # depends on 3) so run this first
+
+remember to update paths
+
+#####################################################
+             BRAINPRINT ANALYSES (PYTHON)
+#####################################################
+
+requirements:
+Python 3.10.4
+and packages found in requirements_py3.txt
+
+brainprints_analysis_minimalexample.py contains instructions to get started
+the program also calls helpers_brainprints.py and helpers_similaritycalc.py so they typically have to be located in the same folder as the main script
+
+#################################
+        FREESURFER-NOTES
+#################################
+
+PATCH:
+mri_sclimbic_seg --> mri_sclimbic_seq_patched (search for MHS)
+
+PATCH:
+mri_sclimbic_seg --> core.py --> core_patched_MHS.py (search for MHS).
+important that import is 
+from freesurfer import samseg
+from freesurfer.subregions import utils
+and not what the official FS patch suggest due to wrong calling of GEMS in the official one
+
+EXPERT OPTS COMMENT
+https://www.mail-archive.com/freesurfer@nmr.mgh.harvard.edu/msg67154.html
+
+Re: [Freesurfer] 7.1 require experts opts for hires?
+
+Douglas N. Greve Tue, 28 Jul 2020 19:54:18 -0700
+You should not need to increase the the number of iterations. Most of the problems with the hi-res stream was due to the extra vertices. The new stream decimates the mesh down to the number of vertices that would have been in a 1mm scan. 
+
+GLOBAL EXPERT OPTIONS USED:
+See https://surfer.nmr.mgh.harvard.edu/fswiki/ReleaseNotes 
+
+/cluster/projects/p23/data/bids_fmri/s2c_gridtask_prisma/bids/derivatives/freesurfer_7.3.2/global-expert-options.txt
+PlaceMMPialSurf --mm_min_inside 50 --mm_max_inside 200 --mm_min_outside 10 --mm_max_outside 50
+mri_ca_label -vent-fix -1 7000 1 -insert-wm-bet-putctx 1
+WhitePreAparc --rip-bg-no-annot
+mri_edit_wm_with_aseg -fix-scm-ha 1
+
+PARALLEL-FLAG
+Parallel-flag broken in 7.3.2. 
+https://www.mail-archive.com/freesurfer@nmr.mgh.harvard.edu/msg68920.html
+Solution: run without
+
+T2PIAL AND LONG-STREAM
+ # T2pial in long-stream (not sure if this is relvant - it concerns the base stream):
+ https://www.mail-archive.com/freesurfer@nmr.mgh.harvard.edu/msg49858.html
+ "you need to use the existing transforms from the base (when the T1 template 
+get’s created) and apply these to the co-registered T2 of each time point. In 
+recon-all base code you will find a mi_robust_template call that takes existing 
+lta transforms for each time points and simply create an new template (based on 
+the inputs) without actually registering (—inform and some other flag to avoid 
+iteration). I think the orig.mgz in the base was created this way. You would 
+run a similar command on the T2’s of each time point."
+
+SOLUTION (see freesurfer_long.sh):
+# NOTE: important to use the raw T2 from the default stream as the long-stream automatically will 
+# load and apply the .ltas coregistering this to default-orig.mgz + to base template. If not using 
+# T2raw (ie. using something further down the pipeline, data would potentially get coreg transformation applied twice)
+
+
+##################################################
+        LCBC SPECIFC ISSUES AND SOLUTIONS
+##################################################
+
+sub-1750721, ses-03:
+subject's MPRAGE is slightly off in terms of voxel size. Conforming to 0.8mm isotropic in freesurfer.defaults.sh
+(needed to get the long-pipeline to work)
+
+sub-1731142, ses-02: 
+WARNING: CANNOT FIND T2W-SPACE, RUNNING RECON-ALL WITHOUT T2pial
+ERROR: could not find hipposlab or T2-space for sub-1731142 ses-02
+WARNING: at least one session missing T2.prenorm.mgz. Running SAMSEG_LONG with mprages only
